@@ -9,15 +9,16 @@ Bab ini memaparkan rancangan solusi untuk mengatasi permasalahan keamanan pada s
 \section{Perancangan Fungsional Sistem}
 \label{sec:perancangan_fungsional}
 
-Tahap perancangan fungsional bertujuan untuk menerjemahkan kebutuhan fungsional (\textit{Functional Requirements}) yang telah diidentifikasi pada Bab III ke dalam bentuk model interaksi pengguna dan sistem. Model ini direpresentasikan menggunakan Diagram Kasus Penggunaan (\textit{Use Case Diagram}) untuk menggambarkan batasan fungsionalitas sistem, entitas yang terlibat, serta hak akses dari masing-masing pihak.
+Tahap perancangan fungsional bertujuan untuk menerjemahkan kebutuhan fungsional (\textit{Functional Requirements}) yang telah diidentifikasi pada Bab III ke dalam bentuk model interaksi pengguna dan sistem. Model ini direpresentasikan menggunakan Diagram Kasus Penggunaan (\textit{Use Case Diagram}) untuk menggambarkan batasan fungsionalitas sistem, entitas aktor eksternal yang terlibat, serta hak akses dari masing-masing pihak terhadap ekosistem sistem pertiketan.
 
 \subsection{Identifikasi Aktor Sistem}
-Sistem \textit{Dynamic Secure QR Code} melibatkan tiga aktor utama yang saling berinteraksi:
+Sesuai dengan standar rekayasa perangkat lunak, aktor didefinisikan sebagai entitas eksternal yang berada di luar batasan sistem (\textit{outside system boundary}) dan berinteraksi langsung dengan layanan perangkat lunak. Sistem \textit{Dynamic Secure QR Code} melibatkan tiga aktor manusia/organisasional utama:
 \begin{enumerate}
-    \item \textbf{Pengguna (\textit{Ticket Holder} / Penonton):} Pengguna sah yang telah membeli tiket dan menggunakan aplikasi \textit{mobile} untuk mengunduh kredensial, mendengarkan sinyal proksimitas BLE di lokasi gerbang, serta menampilkan kode QR dinamis untuk dipindai.
-    \item \textbf{Petugas Gerbang (\textit{Gate Operator} / Alat Pemindai):} Petugas pintu masuk acara yang mengoperasikan aplikasi pemindai pada perangkat seluler. Aktor ini bertugas memancarkan sinyal identitas gerbang (\textit{BLE Beacon}), memindai citra kode QR pengguna, memverifikasi keabsahan tiket secara mandiri dalam kondisi luring (\textit{offline}), serta melakukan sinkronisasi data riwayat pemindaian ke peladen.
-    \item \textbf{Peladen Pusat (\textit{Server Backend}):} Sistem peladen berbasis komputasi awan yang bertindak sebagai otoritas pusat. Peladen bertanggung jawab menerbitkan tiket elektronik, menghasilkan tanda tangan digital (ECDSA), menurunkan kunci rahasia pengguna via \textit{Key Derivation Function} (KDF), serta mengelola rekonsiliasi data kehadiran melalui sinkronisasi asinkron (\textit{batching}).
+    \item \textbf{Pengguna (\textit{Ticket Holder} / Penonton):} Pengguna sah yang telah membeli tiket dan mengoperasikan aplikasi seluler konsumen (\textit{Mobile Consumer App}) untuk mengunduh kredensial tiket, mendeteksi sinyal proksimitas BLE di area gerbang fisik, serta menampilkan kode QR dinamis untuk dipindai.
+    \item \textbf{Petugas Gerbang (\textit{Gate Operator} / Pemindai):} Petugas pintu masuk acara yang mengoperasikan aplikasi pemindai (\textit{Mobile Gate Scanner App}) pada perangkat seluler. Aktor ini bertugas mengaktifkan penyiaran identitas gerbang (\textit{BLE Beacon}), memindai citra kode QR penonton, memverifikasi keabsahan tiket secara mandiri dalam kondisi luring (\textit{offline}), serta memicu sinkronisasi data riwayat pemindaian ke \textit{server}.
+    \item \textbf{Penyelenggara Acara (\textit{Event Organizer} / Administrator):} Pihak pengelola acara yang mengoperasikan antarmuka manajemen untuk mendaftarkan data kegiatan, menentukan zona gerbang fisik ($Gate\_Zone$), menerbitkan tiket elektronik dengan tanda tangan digital, serta memantau rekapitulasi data kehadiran pengunjung secara terpusat.
 \end{enumerate}
+Adapun komponen \textit{Server Backend} berperan sebagai lingkungan komputasi internal sistem yang menyediakan layanan pemrosesan data, eksekusi kriptografi, dan penyimpanan pangkalan data bagi ketiga aktor tersebut.
 
 \subsection{Diagram Kasus Penggunaan (\textit{Use Case Diagram})}
 Interaksi antara ketiga aktor dengan fungsi-fungsi utama sistem dimodelkan dalam Diagram Kasus Penggunaan sebagaimana disajikan pada Gambar \ref{fig:usecase_diagram}.
@@ -25,23 +26,23 @@ Interaksi antara ketiga aktor dengan fungsi-fungsi utama sistem dimodelkan dalam
 \begin{figure}[htbp]
     \centering
     % Placeholder gambar sementara, ganti dengan file diagram UML asli: images/usecase_diagram.png
-    \includegraphics[width=0.85\textwidth]{images/gambar1.png}
+    \includegraphics[width=0.85\textwidth]{images/TA-usecase_diagram.png}
     \caption{Diagram Kasus Penggunaan (\textit{Use Case Diagram}) Sistem \textit{Dynamic Secure QR Code}}
     \label{fig:usecase_diagram}
 \end{figure}
 
-Berdasarkan Gambar \ref{fig:usecase_diagram}, fungsionalitas sistem terbagi menjadi enam kasus penggunaan utama:
+Berdasarkan Gambar \ref{fig:usecase_diagram}, batasan sistem mencakup enam kasus penggunaan utama:
 \begin{enumerate}
-    \item \textbf{UC-01 (Menerbitkan Tiket Elektronik):} Peladen menyusun muatan data tiket non-sensitif (\textit{Data Minimization}), membubuhkan tanda tangan digital ECDSA untuk integritas, dan mendistribusikannya saat transaksi pembelian berhasil.
-    \item \textbf{UC-02 (Mengunduh Kredensial Tiket):} Aplikasi penonton mengunduh tiket elektronik dan kunci rahasia turunan (\textit{user secret}) melalui koneksi aman, lalu menyimpannya di dalam penyimpanan aman lokal perangkat (\textit{secure storage}).
-    \item \textbf{UC-03 (Menyiarkan Sinyal Identitas Gerbang):} Perangkat pemindai petugas menyiarkan paket data BLE secara periodik (\textit{broadcasting}) yang memuat identitas gerbang ($Gate\_ID$) untuk membatasi validitas ruang secara fisik.
-    \item \textbf{UC-04 (Membangkitkan Kode QR Dinamis):} Aplikasi penonton menangkap sinyal BLE gerbang di sekitarnya, menginjeksikan $Gate\_ID$ dan waktu saat ini ke dalam algoritma TOTP, lalu memvisualisasikan hasilnya sebagai kode QR dinamis yang berganti secara berkala.
-    \item \textbf{UC-05 (Memindai dan Memverifikasi Tiket Luring):} Alat pemindai membaca kode QR penonton, memverifikasi tanda tangan digital dengan kunci publik, menurunkan kunci rahasia pengguna secara mandiri, dan mengecek kesegaran token TOTP secara instan tanpa koneksi internet.
-    \item \textbf{UC-06 (Melakukan Sinkronisasi Log Pemindaian):} Alat pemindai menyimpan riwayat pemindaian ke dalam \textit{local cache} dan mengirimkannya secara terkelompok (\textit{batching}) ke peladen pusat ketika koneksi internet tersedia di latar belakang.
+    \item \textbf{UC-01 (Mengelola Acara dan Menerbitkan Tiket):} Penyelenggara acara mendaftarkan parameter kegiatan, menginisiasi pembuatan pasangan kunci ECDSA, serta menerbitkan tiket yang memuat tanda tangan digital dan kunci rahasia turunan untuk didistribusikan kepada pembeli yang sah.
+    \item \textbf{UC-02 (Mengunduh Kredensial Tiket):} Pengguna mengunduh data tiket elektronik beserta kunci rahasia tiket ($Ticket\_Secret$) melalui koneksi aman TLS/HTTPS, lalu menyimpannya di dalam media penyimpanan lokal perangkat yang terisolasi.
+    \item \textbf{UC-03 (Menyiarkan Sinyal Identitas Gerbang):} Petugas gerbang mengaktifkan modul pemancar Bluetooth pada ponsel pemindai untuk menyiarkan paket siaran BLE beridentitas gerbang spesifik ($Gate\_ID$) secara kontinu ke area antrean masuk.
+    \item \textbf{UC-04 (Membangkitkan Kode QR Dinamis \textit{Gate-Bound}):} Aplikasi pengguna menangkap sinyal BLE gerbang lokal, menurunkan kunci gerbang ($Gate\_Secret$), menghitung token waktu TOTP 6 digit, lalu memvisualisasikan matriks kode QR dinamis yang disegarkan setiap 30 detik.
+    \item \textbf{UC-05 (Memindai dan Memvalidasi Tiket Luring):} Petugas gerbang memindai kode QR pengunjung melalui kamera, memverifikasi integritas tanda tangan digital ECDSA secara lokal, menurunkan kunci gerbang mandiri, dan memvalidasi keabsahan token TOTP tanpa memerlukan koneksi internet.
+    \item \textbf{UC-06 (Melakukan Sinkronisasi Log Pemindaian):} Petugas gerbang menyinkronkan data log transaksi kehadiran yang tertampung di antrean lokal ke \textit{server} secara asinkron (\textit{two-way batch sync}) untuk pembaruan status akhir tiket di pangkalan data pusat.
 \end{enumerate}
 
 \subsection{Matriks Penelusuran Kebutuhan (\textit{Traceability Matrix})}
-Untuk menjamin bahwa seluruh kebutuhan fungsional yang telah didefinisikan pada Bab III terealisasi dalam perancangan, Tabel \ref{tab:traceability_matrix} menyajikan matriks penelusuran antara kebutuhan fungsional dengan kasus penggunaan terkait.
+Untuk menjamin bahwa seluruh kebutuhan fungsional (FR-01 s.d. FR-09) yang telah dirumuskan pada Bab III terealisasi penuh dalam perancangan fungsional, Tabel \ref{tab:traceability_matrix} menyajikan matriks penelusuran kebutuhan terhadap kasus penggunaan terkait.
 
 \begin{table}[htbp]
     \caption{Matriks Penelusuran Kebutuhan Fungsional ke Kasus Penggunaan}
@@ -52,13 +53,14 @@ Untuk menjamin bahwa seluruh kebutuhan fungsional yang telah didefinisikan pada 
         \textbf{Kode FR} & \textbf{Deskripsi Kebutuhan Fungsional} & \textbf{Kasus Penggunaan Terkait} \\
         \midrule
         FR-01 & Penerbitan \textit{E-ticket} dan Distribusi Kunci & UC-01, UC-02 \\
-        FR-02 & Pembangkitan Kode QR Dinamis Berkala & UC-04 \\
+        FR-02 & Pembangkitan Kode QR Dinamis \textit{Gate-Bound} & UC-04 \\
         FR-03 & Minimalisasi Data dan Perlindungan Privasi & UC-01, UC-04 \\
-        FR-04 & Penjaminan Integritas Data Tiket via Tanda Tangan Digital & UC-01, UC-05 \\
+        FR-04 & Penjaminan Integritas Data via Tanda Tangan Digital ECDSA & UC-01, UC-05 \\
         FR-05 & Verifikasi Lokal Mandiri (\textit{Stateless Offline}) & UC-05 \\
-        FR-06 & Validasi Token Waktu (\textit{Time-Bound}) & UC-04, UC-05 \\
+        FR-06 & Validasi Token Waktu (\textit{Time-Bound}) dan \textit{Clock Drift} & UC-04, UC-05 \\
         FR-07 & Manajemen \textit{Cache} Lokal dan Pencegahan \textit{Replay} & UC-05 \\
         FR-08 & Sinkronisasi Asinkron (\textit{Batching}) Log Kehadiran & UC-06 \\
+        FR-09 & Penyiaran dan Deteksi Sinyal Proksimitas Spasial BLE & UC-03, UC-04 \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -66,7 +68,7 @@ Untuk menjamin bahwa seluruh kebutuhan fungsional yang telah didefinisikan pada 
 \section{Perancangan Arsitektur Sistem}
 \label{sec:perancangan_arsitektur}
 
-Sistem \textit{Dynamic Secure QR Code} dirancang menggunakan pendekatan arsitektur hibrida (\textit{hybrid architecture}) yang memadukan keandalan komputasi awan (\textit{cloud computing}) dengan ketangguhan pemrosesan tepi (\textit{edge processing}). Arsitektur ini dirancang untuk mengatasi dilema antara integritas data terpusat dan kebutuhan operasional pintu masuk yang menuntut validasi cepat tanpa ketergantungan jaringan internet \textit{real-time}.
+Sistem \textit{Dynamic Secure QR Code} dirancang menggunakan pendekatan arsitektur hibrida (\textit{hybrid architecture}) yang memadukan keandalan komputasi awan (\textit{cloud computing}) dengan ketangguhan pemrosesan tepi (\textit{edge processing}). Arsitektur ini dirancang untuk mengatasi dilema operasional pintu masuk acara berskala besar: menjamin integritas data terpusat sekaligus memastikan proses verifikasi tiket tetap berlangsung seketika tanpa bergantung pada konektivitas internet \textit{real-time}.
 
 Diagram arsitektur tingkat tinggi sistem diilustrasikan pada Gambar \ref{fig:system_architecture}.
 
@@ -81,66 +83,70 @@ Diagram arsitektur tingkat tinggi sistem diilustrasikan pada Gambar \ref{fig:sys
 Sebagaimana ditunjukkan pada Gambar \ref{fig:system_architecture}, arsitektur sistem didekomposisi ke dalam tiga simpul komputasi utama beserta tiga kanal protokol komunikasinya:
 
 \begin{enumerate}
-    \item \textbf{Simpul Peladen Pusat (\textit{Cloud Backend Node}):}
-    Berjalan di lingkungan server komputasi awan dengan kerangka kerja FastAPI dan basis data relasional PostgreSQL. Simpul ini bertanggung jawab untuk:
+    \item \textbf{Simpul \textit{Server} Pusat (\textit{Cloud Backend Node}):}
+    Berjalan di lingkungan \textit{server} komputasi awan dengan kerangka kerja FastAPI dan basis data relasional PostgreSQL. Simpul ini bertanggung jawab untuk:
     \begin{itemize}
-        \item Mengelola siklus hidup data tiket dan transaksi penjualan.
-        \item Menjalankan mesin kriptografi untuk pembuatan pasangan kunci (\textit{Keypair Generation}), penandatanganan tiket dengan kunci privat ECDSA, dan penurunan \textit{User Secret} dari \textit{Master Secret}.
-        \item Menerima kiriman log kehadiran berkala dari berbagai alat pemindai secara asinkron (\textit{batching endpoint}) untuk pembaruan status akhir tiket (\textit{eventual consistency}).
+        \item Mengelola siklus hidup data acara, registrasi pengguna, dan transaksi tiket.
+        \item Menjalankan mesin kriptografi untuk pembuatan pasangan kunci (\textit{Keypair Generation}), penandatanganan tiket dengan kunci privat ECDSA, serta penurunan kunci rahasia tiket ($Ticket\_Secret$) dari kunci master acara ($Master\_Secret$).
+        \item Menerima kiriman log kehadiran berkala dari berbagai alat pemindai melalui titik akhir sinkronisasi (\textit{batch sync endpoint}) untuk pemutakhiran status akhir tiket (\textit{eventual consistency}).
     \end{itemize}
 
     \item \textbf{Simpul Klien Pengguna (\textit{Mobile Consumer Node}):}
-    Aplikasi berbasis React Native yang dioperasikan pada ponsel pintar pengguna. Karakteristik simpul ini meliputi:
+    Aplikasi berbasis React Native yang dioperasikan pada ponsel cerdas penonton. Karakteristik simpul ini meliputi:
     \begin{itemize}
-        \item Penyimpanan aman (\textit{Secure Storage / Keystore}) untuk menyimpan \textit{payload} tiket statis, tanda tangan digital, dan kunci rahasia pengguna secara terenkripsi.
-        \item Modul pendengar nirkabel (\textit{BLE Observer}) yang mendeteksi sinyal siaran \textit{beacon} dari gerbang masuk ketika pengguna tiba di lokasi.
-        \item Mesin pembangkit TOTP lokal yang menghitung nilai token 6 digit dinamis setiap jendela waktu tertentu dengan mengombinasikan kunci rahasia pengguna, waktu internal, dan pengenal gerbang ($Gate\_ID$).
+        \item Media penyimpanan aman lokal yang terisolasi untuk menyimpan data tiket statis, tanda tangan digital, dan $Ticket\_Secret$.
+        \item Modul pendengar nirkabel (\textit{BLE Observer}) yang memindai sinyal siaran \textit{beacon} dari gerbang masuk ketika pengguna tiba di lokasi fisik acara.
+        \item Mesin pembangkitan TOTP lokal yang menurunkan kunci gerbang ($Gate\_Secret$) dan menghitung nilai token 6 digit dinamis sesuai standar RFC 6238 setiap jendela waktu 30 detik.
     \end{itemize}
 
     \item \textbf{Simpul Pemindai Gerbang (\textit{Edge Scanner Node}):}
     Aplikasi seluler yang dioperasikan oleh petugas di setiap pintu gerbang fisik. Simpul ini dirancang dengan prinsip \textit{offline-first} dan memiliki subsistem berupa:
     \begin{itemize}
-        \item Modul pemancar proksimitas (\textit{BLE Broadcaster}) yang memanfaatkan modul Bluetooth bawaan ponsel untuk menyiarkan identitas gerbang lokal secara kontinu.
-        \item Pemindai kamera optik berkecepatan tinggi untuk mendeteksi dan mengekstraksi data matriks kode QR.
-        \item Mesin verifikasi luring mandiri yang memverifikasi tanda tangan digital menggunakan kunci publik peladen dan merekonstruksi kunci rahasia pengguna menggunakan rumus derivasi lokal.
-        \item Basis data lokal (\textit{SQLite Local Cache}) yang mencatat daftar tiket yang telah dipindai di gerbang tersebut serta menampung antrean log transaksi (\textit{batching queue}) sebelum diunggah ke peladen.
+        \item Modul pemancar proksimitas (\textit{BLE Broadcaster}) yang memanfaatkan modul Bluetooth ponsel petugas untuk menyiarkan identitas gerbang lokal ($Gate\_ID$) secara kontinu.
+        \item Pemindai kamera optik berkecepatan tinggi untuk mendeteksi dan menguraikan data matriks kode QR penonton.
+        \item Mesin verifikasi luring mandiri yang memvalidasi tanda tangan digital menggunakan kunci publik \textit{server}, menurunkan kunci rahasia gerbang secara lokal dari $Master\_Secret$, dan mencocokkan token TOTP secara instan.
+        \item Basis data lokal (\textit{Local Storage / Cache}) yang mencatat histori pemindaian lokal untuk pencegahan penggunaan tiket ganda (\textit{double-spending}) serta menampung antrean pengiriman log sinkronisasi (\textit{offline sync queue}).
     \end{itemize}
 \end{enumerate}
 
-Adapun interaksi antar-simpul tersebut dijembatani oleh tiga moda komunikasi:
+Adapun interaksi antarsimpul tersebut dijembatani oleh tiga moda komunikasi:
 \begin{enumerate}[a)]
-    \item \textbf{Kanal HTTPS / REST API:} Digunakan untuk pertukaran data dua arah melalui jaringan internet ketika koneksi tersedia, yaitu saat pengunduhan tiket pertama kali oleh penonton dan pengunggahan kumpulan log transaksi oleh petugas.
-    \item \textbf{Kanal Optik (Kode QR):} Digunakan sebagai antarmuka transfer data nirsentuh (\textit{contactless}) searah dari layar ponsel penonton ke kamera alat pemindai, memuat gabungan data tiket statis, tanda tangan digital, dan token TOTP dinamis.
-    \item \textbf{Kanal Frekuensi Radio BLE 2.4 GHz:} Digunakan sebagai mekanisme transmisi searah (\textit{unidirectional advertising}) tanpa perlu pemasangan perangkat (\textit{connectionless}) untuk menyiarkan informasi spasial gerbang masuk kepada ponsel penonton di sekitarnya.
+    \item \textbf{Kanal HTTPS / REST API:} Digunakan untuk pertukaran data dua arah melalui jaringan internet ketika koneksi tersedia, yaitu saat pengunduhan tiket awal oleh penonton dan pertukaran data sinkronisasi log oleh petugas gerbang.
+    \item \textbf{Kanal Optik (Kode QR):} Digunakan sebagai antarmuka transfer data nirsentuh (\textit{contactless}) searah berkecepatan tinggi dari layar ponsel penonton ke kamera alat pemindai gerbang.
+    \item \textbf{Kanal Frekuensi Radio BLE 2.4 GHz:} Digunakan sebagai mekanisme transmisi penyiaran searah (\textit{unidirectional advertising}) tanpa perlu pemasangan perangkat (\textit{connectionless}) untuk membatasi keabsahan tiket secara fisik di lokasi gerbang masuk.
 \end{enumerate}
 
 \section{Perancangan Alur Kerja dan Interaksi Sistem}
 \label{sec:perancangan_alur}
 
-Perancangan alur kerja dan interaksi sistem mendetailkan urutan proses komputasi dan komunikasi yang terjadi antarkomponen perangkat lunak. Pembahasan difokuskan pada empat siklus hidup utama: (1) penerbitan tiket dan derivasi kunci di server, (2) deteksi sinyal proksimitas BLE dan pembangkitan kode QR dinamis di ponsel pengguna, (3) validasi tiket mandiri secara luring di perangkat pemindai gerbang, serta (4) sinkronisasi log transaksi pemindaian kembali ke peladen pusat.
+Perancangan alur kerja dan interaksi sistem mendetailkan urutan proses komputasi dan komunikasi yang terjadi antarkomponen perangkat lunak. Pembahasan difokuskan pada empat siklus hidup utama: (1) penerbitan tiket dan derivasi kunci di \textit{server}, (2) deteksi sinyal proksimitas BLE dan pembangkitan kode QR dinamis di ponsel pengguna, (3) validasi tiket mandiri secara luring di perangkat pemindai gerbang, serta (4) sinkronisasi log transaksi pemindaian kembali ke \textit{server} pusat.
 
-\subsection{Alur Penerbitan Tiket dan Penurunan Kunci (Sisi Server)}
+\subsection{Alur Penerbitan Tiket dan Penurunan Kunci (Sisi \textit{Server})}
 \label{subsec:alur_penerbitan}
-Siklus hidup tiket dimulai ketika transaksi pembelian tiket oleh pengguna berhasil diverifikasi oleh modul pembayaran pada peladen pusat. Alur logika penerbitan tiket pada peladen diilustrasikan pada Gambar \ref{fig:alur_penerbitan}.
+Siklus hidup tiket dimulai ketika transaksi pembelian tiket oleh pengguna berhasil diverifikasi oleh modul pembayaran pada \textit{server} pusat. Alur logika penerbitan tiket pada \textit{server} diilustrasikan pada Gambar \ref{fig:alur_penerbitan}.
 
 \begin{figure}[htbp]
     \centering
     % Placeholder gambar alur penerbitan tiket: images/flowchart.png
     \includegraphics[width=0.85\textwidth]{images/flowchart.png}
-    \caption{Diagram Alur Proses Penerbitan Tiket dan Penurunan Kunci di Sisi Peladen}
+    \caption{Diagram Alur Proses Penerbitan Tiket dan Penurunan Kunci di Sisi \textit{Server}}
     \label{fig:alur_penerbitan}
 \end{figure}
 
 Langkah-langkah terinci dari proses penerbitan tiket meliputi:
 \begin{enumerate}
-    \item \textbf{Penyusunan Muatan Tiket (\textit{Payload Construction}):} Peladen menyusun muatan teknis tiket berbasis prinsip \textit{Data Minimization}. Informasi yang disertakan hanya mencakup atribut teknis berupa Pengenal Tiket unik ($Ticket\_ID$), Pengenal Acara ($Event\_ID$), Kategori Tiket ($Category$), dan Zona Gerbang yang diizinkan ($Gate\_Zone$). Tidak ada Data Pribadi Pengguna (\textit{Personally Identifiable Information} / PII) seperti NIK, nama lengkap, atau alamat surat elektronik yang dimasukkan ke dalam muatan kode QR.
-    \item \textbf{Penandatanganan Digital ECDSA:} Peladen melakukan proses \textit{hashing} terhadap deret muatan data tiket menggunakan algoritma SHA-256, kemudian membubuhkan tanda tangan digital berupa pasangan nilai $(r, s)$ menggunakan Kunci Privat Peladen ($d_{server}$) berbasis kurva eliptik standar NIST P-256 (\textit{secp256r1}).
-    \item \textbf{Penurunan Kunci Rahasia Pengguna (\textit{User Secret}):} Peladen menghitung kunci rahasia unik pengguna menggunakan fungsi derivasi kunci berbasis HMAC (HKDF):
+    \item \textbf{Inisiasi Entitas Tiket:} \textit{Server} membuat rekaman tiket baru di pangkalan data relasional dan menghasilkan Pengenal Tiket unik berbasis bilangan bulat berseri ($Ticket\_ID$) yang diasosiasikan dengan Pengenal Acara ($Event\_ID$), Pengenal Pengguna ($User\_ID$), dan Kategori Tiket ($Category$).
+    \item \textbf{Penandatanganan Digital ECDSA:} Untuk menjamin keaslian penerbit tanpa membebani ukuran muatan data, \textit{server} menyusun pesan ringkas yang mengikat identitas tiket dan acara:
     \begin{equation}
-        User\_Secret = HMAC\text{-}SHA\text{-}256(Master\_Secret, Ticket\_ID)
+        message = Ticket\_ID \mathbin{\Vert} \text{":"} \mathbin{\Vert} Event\_ID
     \end{equation}
-    Kunci rahasia ini bersifat deterministik dan unik untuk setiap tiket, sehingga peladen tidak perlu mengalokasikan ruang basis data khusus untuk menyimpan kunci simetris setiap pengguna secara terpisah.
-    \item \textbf{Distribusi Kredensial ke Klien:} Paket kredensial yang terdiri atas \textit{Payload} statis, Tanda Tangan Digital $(r, s)$, dan $User\_Secret$ ditransmisikan ke aplikasi ponsel pengguna melalui kanal terenkripsi TLS/HTTPS untuk disimpan pada penyimpanan aman lokal perangkat.
+    Pesan ini di-hash menggunakan SHA-256 dan ditandatangani menggunakan Kunci Privat \textit{Server} ($d_{server}$) berbasis kurva eliptik standar NIST P-256 (\textit{secp256r1}), menghasilkan pasangan nilai tanda tangan digital $(r, s)$ yang dienkode dalam representasi heksadesimal kompak (64 byte).
+    \item \textbf{Penurunan Kunci Rahasia Tiket Tingkat Pertama ($Ticket\_Secret$):} \textit{Server} menurunkan kunci rahasia unik tiket dari kunci master acara ($Master\_Secret$) menggunakan fungsi HMAC:
+    \begin{equation}
+        Ticket\_Secret = HMAC\text{-}SHA\text{-}256(Master\_Secret, Ticket\_ID)
+    \end{equation}
+    Sifat deterministik dari fungsi KDF ini meniadakan kebutuhan \textit{server} untuk mengalokasikan kolom khusus penyimpanan kunci simetris setiap tiket di pangkalan data.
+    \item \textbf{Distribusi Kredensial ke Klien:} Paket kredensial yang memuat data tiket, tanda tangan digital $(r, s)$, dan $Ticket\_Secret$ ditransmisikan ke aplikasi ponsel pengguna melalui kanal terenkripsi TLS/HTTPS untuk disimpan pada media penyimpanan aman lokal perangkat.
 \end{enumerate}
 
 \subsection{Alur Deteksi BLE dan Pembangkitan Gate-Bound TOTP (Sisi Pengguna)}
@@ -156,14 +162,21 @@ Pembangkitan kode QR dinamis dipindahkan sepenuhnya ke sisi klien (\textit{clien
 
 Tahapan komputasi pada sisi aplikasi pengguna dijabarkan sebagai berikut:
 \begin{enumerate}
-    \item \textbf{Pemindaian Latar Belakang BLE (\textit{BLE Scanning}):} Saat pengguna membuka halaman tiket pada aplikasi di area gerbang masuk, modul \textit{BLE Observer} melakukan pemindaian sinyal siaran \textit{beacon}.
-    \item \textbf{Validasi Proksimitas Spasial:} Aplikasi memfilter paket siaran yang memiliki UUID sistem resmi. Jika sinyal terdeteksi dengan nilai daya terima melebihi ambang batas ($RSSI \ge RSSI_{threshold}$, misal $-75\text{ dBm}$), aplikasi mengonfirmasi bahwa pengguna berada dalam radius fisik gerbang dan mengekstrak nilai pengenal gerbang ($Gate\_ID$) dari paket siaran tersebut. Apabila pengguna berada di luar jangkauan sinyal gerbang, aplikasi menampilkan status siaga tanpa memvalidasi kunci gerbang.
-    \item \textbf{Pembangkitan Token TOTP Spasial (\textit{Gate-Bound}):} Menggunakan nilai $User\_Secret$ yang tersimpan di \textit{Keystore}, waktu jam internal perangkat dalam format Unix Epoch, dan nilai $Gate\_ID$ yang baru ditangkap, aplikasi menghitung token TOTP dinamis:
+    \item \textbf{Pemindaian Latar Belakang BLE (\textit{BLE Scanning}):} Saat pengguna membuka halaman tiket pada aplikasi di area pintu masuk, modul \textit{BLE Observer} melakukan pemindaian sinyal siaran \textit{beacon}.
+    \item \textbf{Validasi Proksimitas Spasial:} Aplikasi memfilter paket siaran yang memiliki pola penamaan sistem resmi. Jika sinyal terdeteksi dengan nilai daya terima melebihi ambang batas ($RSSI \ge RSSI_{threshold}$, misal $-75\text{ dBm}$), aplikasi mengonfirmasi kehadiran fisik pengguna di dekat gerbang dan mengekstrak nilai pengenal gerbang ($Gate\_ID$) dari paket siaran tersebut.
+    \item \textbf{Penurunan Kunci Gerbang Tingkat Kedua ($Gate\_Secret$):} Aplikasi menurunkan kunci rahasia spesifik gerbang dari $Ticket\_Secret$ yang tersimpan di media penyimpanan aman lokal:
     \begin{equation}
-        HS_{gate} = HMAC\text{-}SHA\text{-}256\Big(User\_Secret, T \parallel Gate\_ID\Big)
+        Gate\_Secret = HMAC\text{-}SHA\text{-}256(Ticket\_Secret, Gate\_ID)
     \end{equation}
-    Token 6 digit kemudian diekstraksi melalui proses pemotongan dinamis (\textit{Dynamic Truncation}).
-    \item \textbf{Visualisasi dan Kedaluwarsa Otomatis:} Aplikasi menggabungkan \textit{Payload} statis, Tanda Tangan Digital $(r, s)$, dan Token TOTP menjadi satu deret data terformat yang langsung divisualisasikan menjadi citra matriks kode QR. Siklus ini berulang secara otomatis setiap interval waktu 30 detik ($X = 30$).
+    \item \textbf{Pembangkitan Token TOTP Standar RFC 6238:} Menggunakan $Gate\_Secret$ sebagai kunci simetris dan waktu jam internal perangkat dalam format Unix Epoch, aplikasi membangkitkan token sandi sekali pakai 6 digit dinamis dengan interval waktu $X = 30$ detik:
+    \begin{equation}
+        TOTP = RFC6238\_TOTP\Big(Key = Gate\_Secret, Period = 30, Algorithm = SHA\text{-}1\Big)
+    \end{equation}
+    \item \textbf{Enkapsulasi dan Visualisasi Kode QR:} Aplikasi menyusun lima komponen muatan dengan pembatas titik dua (\texttt{:}):
+    \begin{equation}
+        Payload_{QR} = Ticket\_ID \mathbin{\Vert} \text{":"} \mathbin{\Vert} Event\_ID \mathbin{\Vert} \text{":"} \mathbin{\Vert} Gate\_ID \mathbin{\Vert} \text{":"} \mathbin{\Vert} TOTP \mathbin{\Vert} \text{":"} \mathbin{\Vert} Signature
+    \end{equation}
+    Muatan terstruktur ini langsung dirender menjadi citra matriks kode QR di layar ponsel pengguna dan diperbarui secara otomatis setiap siklus 30 detik.
 \end{enumerate}
 
 \subsection{Alur Validasi Tiket Mandiri Luring (Sisi Pemindai Gerbang)}
@@ -177,22 +190,27 @@ Alat pemindai gerbang bertindak sebagai simpul komputasi tepi (\textit{edge node
     \label{fig:flowchart_validasi}
 \end{figure}
 
-Mekanisme verifikasi pada alat pemindai terdiri dari empat lapisan pemeriksaan berurutan:
+Mekanisme verifikasi pada alat pemindai terdiri dari lima tahapan berurutan:
 \begin{enumerate}
-    \item \textbf{Pemindaian Optik dan Penguraian Data (\textit{Data Parsing}):} Kamera pemindai menangkap citra kode QR dan menguraikan deret data menjadi tiga komponen: \textit{Payload} ($m$), Tanda Tangan Digital $(r, s)$, dan Token TOTP yang diklaim ($TOTP_{claimed}$).
-    \item \textbf{Pemeriksaan Integritas via Verifikasi ECDSA:} Pemindai menghitung nilai hash $e = SHA\text{-}256(m)$ lalu memverifikasi tanda tangan $(r, s)$ menggunakan Kunci Publik Peladen ($Q_{server}$) yang telah tersimpan secara lokal pada konfigurasi aplikasi. Jika verifikasi gagal, tiket langsung ditolak dengan status ``Tiket Palsu / Telah Dimodifikasi''.
-    \item \textbf{Pencegahan Penggunaan Berulang Lokal (\textit{Anti-Double Spending}):} Pemindai memeriksa apakah $Ticket\_ID$ sudah tercatat di dalam basis data \textit{cache} lokal (\textit{Local SQLite Cache}) pada perangkat pemindai tersebut. Jika sudah tercatat, tiket ditolak dengan status ``Tiket Sudah Digunakan''.
-    \item \textbf{Penurunan Kunci Mandiri (\textit{On-the-fly Key Derivation}):} Jika integritas terbukti sah dan tiket belum pernah dipindai, pemindai menurunkan kunci rahasia pengguna secara mandiri menggunakan $Master\_Secret$ lokal dan $Ticket\_ID$:
-    \begin{equation}
-        User\_Secret = HMAC\text{-}SHA\text{-}256(Master\_Secret, Ticket\_ID)
-    \end{equation}
-    \item \textbf{Verifikasi Token Spasial Gate-Bound TOTP:} Pemindai menghitung token acuan menggunakan $User\_Secret$ hasil kalkulasi, waktu jam pemindai, dan pengenal gerbang milik pemindai itu sendiri ($Gate\_ID_{local}$). Sistem juga memperhitungkan toleransi pergeseran waktu (\textit{time drift}) sebesar satu jendela ($\pm 1$ langkah waktu). Jika $TOTP_{claimed}$ cocok dengan hasil kalkulasi lokal, maka tiket dinyatakan sah (lampu indikator hijau menyala dan palang pintu terbuka).
-    \item \textbf{Pencatatan Status ke Penyimpanan Lokal:} ID Tiket dan waktu pemindaian langsung dicatat ke dalam \textit{Local Cache} agar penolakan instan dapat dilakukan jika tiket yang sama dipindai kembali, sekaligus dimasukkan ke dalam antrean sinkronisasi (\textit{Batching Queue}).
+    \item \textbf{Pemindaian Optik dan Penguraian Data (\textit{Data Parsing}):} Kamera pemindai menangkap citra kode QR dan menguraikan deret teks berbasis pembatas titik dua menjadi lima elemen: $Ticket\_ID$, $Event\_ID$, $Gate\_ID_{claimed}$, $TOTP_{claimed}$, dan $Signature$.
+    \item \textbf{Pemeriksaan Integritas via Verifikasi ECDSA:} Pemindai menyusun ulang pesan acuan $message = Ticket\_ID \mathbin{\Vert} \text{":"} \mathbin{\Vert} Event\_ID$, menghitung intisari hash $e = SHA\text{-}256(message)$, lalu memverifikasi tanda tangan digital $(r, s)$ menggunakan Kunci Publik \textit{Server} ($Q_{server}$) yang tersimpan secara lokal pada konfigurasi aplikasi pemindai. Jika tanda tangan tidak cocok, tiket langsung ditolak dengan status kesalahan berwarna merah bertuliskan ``Tanda Tangan Tidak Valid / Tiket Palsu''.
+    \item \textbf{Pencegahan Penggunaan Berulang Lokal (\textit{Anti-Double Spending}):} Pemindai memeriksa apakah $Ticket\_ID$ sudah tercatat di dalam riwayat penyimpanan lokal (\textit{Local Cache}) pemindai. Jika sudah tercatat, tiket ditolak dengan indikator merah bertuliskan ``Tiket Sudah Pernah Dipindai''.
+    \item \textbf{Rekonstruksi Kunci 2 Tingkat Mandiri (\textit{On-the-fly Key Derivation}):} Pemindai menurunkan kunci rahasia tiket dan kunci gerbang lokal secara mandiri menggunakan $Master\_Secret$ lokal yang tersimpan di perangkat pemindai:
+    \begin{align}
+        Ticket\_Secret &= HMAC\text{-}SHA\text{-}256(Master\_Secret, Ticket\_ID) \\
+        Gate\_Secret &= HMAC\text{-}SHA\text{-}256(Ticket\_Secret, Gate\_ID_{local})
+    \end{align}
+    \item \textbf{Pencocokan Token TOTP Spasial dan Pemeriksaan Gerbang:} Pemindai menghitung token acuan menggunakan $Gate\_Secret$ lokal dan waktu jam pemindai dengan toleransi pergeseran waktu (\textit{clock drift}) sebesar $\pm 1$ langkah waktu.
+    \begin{itemize}
+        \item Jika $TOTP_{claimed}$ cocok dengan hasil kalkulasi lokal, maka tiket dinyatakan sah (indikator visual hijau menyala dan notifikasi ``TIKET VALID / MASUK'').
+        \item Jika $TOTP_{claimed}$ tidak cocok pada gerbang lokal namun terbukti valid untuk pengenal gerbang lain dalam zona yang sama, sistem menampilkan status penolakan dengan indikator merah bertuliskan ``GERBANG SALAH / TIKET VALID DI GERBANG LAIN'', memberi petunjuk kepada petugas untuk mengarahkan penonton ke gerbang yang sesuai.
+    \end{itemize}
+    \item \textbf{Pencatatan Status ke Penyimpanan Lokal:} Tiket yang berhasil divalidasi langsung dicatat ke dalam riwayat pemindaian lokal untuk memblokir pemindaian ulang, sekaligus dimasukkan ke dalam antrean sinkronisasi (\textit{offline sync queue}).
 \end{enumerate}
 
-\subsection{Alur Sinkronisasi Log Asinkron (Sisi Pemindai ke Server)}
+\subsection{Alur Sinkronisasi Log Asinkron (Sisi Pemindai ke \textit{Server})}
 \label{subsec:alur_sinkronisasi}
-Untuk menjamin konsistensi data akhir (\textit{eventual consistency}) pada seluruh gerbang di lokasi acara, alat pemindai dilengkapi dengan subsistem pengiriman data log terkelompok (\textit{asynchronous batching sync}). Alur proses sinkronisasi digambarkan pada Gambar \ref{fig:alur_sinkronisasi}.
+Untuk menjamin konsistensi data akhir (\textit{eventual consistency}) pada seluruh gerbang di lokasi acara tanpa mengganggu kelancaran proses validasi luring, alat pemindai dilengkapi dengan mekanisme sinkronisasi dua arah yang dipicu secara ganda (\textit{Dual-Triggered Two-Way Synchronization}). Alur proses sinkronisasi digambarkan pada Gambar \ref{fig:alur_sinkronisasi}.
 
 \begin{figure}[htbp]
     \centering
@@ -202,23 +220,26 @@ Untuk menjamin konsistensi data akhir (\textit{eventual consistency}) pada selur
     \label{fig:alur_sinkronisasi}
 \end{figure}
 
-Prosedur sinkronisasi bekerja dengan mekanisme sebagai berikut:
+Mekanisme sinkronisasi bekerja secara adaptif melalui tiga moda pemicu:
 \begin{enumerate}
-    \item \textbf{Penampungan Log Transaksi:} Setiap pemindaian yang berhasil diverifikasi akan dibungkus menjadi sebuah objek data JSON berisi $Ticket\_ID$, $Gate\_ID$, $Scanner\_Device\_ID$, stempel waktu pemindaian ($Timestamp$), dan nomor urut transaksi lokal, kemudian disimpan ke tabel antrean lokal pemindai (\texttt{sync\_queue}).
-    \item \textbf{Pendeteksian Konektivitas Jaringan:} Layanan latar belakang (\textit{background service}) pada aplikasi pemindai secara berkala melakukan pemeriksaan status konektivitas internet (ping ringan ke peladen).
-    \item \textbf{Transmisi Terkelompok (\textit{Batch Payload Transmission}):} Ketika koneksi internet terdeteksi aktif, aplikasi mengambil sejumlah $N$ data transaksi tertua dari antrean lokal (misalnya per 50 atau 100 catatan transaksi) dan mengirimkannya dalam satu permintaan HTTP POST ke titik akhir (\textit{endpoint}) \texttt{/api/v1/sync/batch} di peladen pusat.
-    \item \textbf{Pemutakhiran Transaksional Basis Data Pusat:} Peladen memvalidasi paket kiriman dan memperbarui status tiket pada basis data utama PostgreSQL dalam sebuah transaksi atomik (\textit{ACID transaction}).
-    \item \textbf{Penghapusan Antrean Lokal:} Setelah peladen mengirimkan kode status keberhasilan (HTTP 200 OK), pemindai menandai atau menghapus catatan transaksi terkait dari antrean lokal untuk mencegah transmisi ganda.
-
+    \item \textbf{Pemicu Pengiriman Langsung Adaptif (\textit{Opportunistic Instant Push}):} Setiap kali pemindaian berhasil diverifikasi, rekaman log transaksi dibungkus dalam objek JSON dan disimpan ke antrean lokal pemindai (\texttt{offline\_sync\_queue}). Pemindai langsung mencoba mengirimkan isi antrean ke \textit{server} saat itu juga. Apabila koneksi internet sedang aktif, kumpulan log terkirim seketika; apabila koneksi sedang terputus, permintaan gagal secara senyap (\textit{silent failure}) tanpa menghentikan pemindaian kamera, dan data tetap aman tersimpan di antrean lokal.
+    \item \textbf{Pemicu Waktu Berkala Otomatis (\textit{Time-Based Auto-Sync}):} Layanan latar belakang (\textit{background service}) pada aplikasi pemindai menjalankan proses sinkronisasi otomatis secara berkala sesuai interval waktu yang dapat dikonfigurasi oleh petugas melalui menu pengaturan antarmuka pemindai (dengan opsi: Dinonaktifkan, 1 Menit, 5 Menit, atau 10 Menit).
+    \item \textbf{Pemicu Manual (\textit{User-Initiated Trigger}):} Petugas gerbang dapat menekan tombol sinkronisasi pada layar kapan saja ketika mendeteksi indikator konektivitas internet telah kembali stabil.
 \end{enumerate}
+
+Adapun proses pertukaran data sinkronisasi berlangsung dua arah (\textit{Two-Way Sync}):
+\begin{itemize}
+    \item \textbf{Pengunggahan Log Transaksi (\textit{Push}):} Pemindai mengirimkan seluruh antrean log lokal ke titik akhir \texttt{POST /batch\_sync\_scans}. \textit{Server} memproses paket log tersebut secara atomik di pangkalan data PostgreSQL, kemudian mengembalikan status sukses sehingga pemindai dapat mengosongkan antrean lokal.
+    \item \textbf{Pembaruan Data Lokal (\textit{Pull}):} Pemindai melakukan permintaan data ke titik akhir \texttt{GET /admin/tickets} dan \texttt{GET /public\_key} untuk memperbarui daftar status tiket terkini yang mungkin telah dipindai di gerbang lain serta memastikan kunci publik \textit{server} selalu mutakhir.
+\end{itemize}
 
 \section{Perancangan Protokol Keamanan dan Kriptografi}
 \label{sec:perancangan_kriptografi}
 
-Keunggulan sistem \textit{Dynamic Secure QR Code} terletak pada integrasi harmonis antara protokol kriptografi kunci publik dan algoritma simetris yang efisien. Subbab ini mendetailkan spesifikasi struktur muatan data, parameter kurva tanda tangan digital, fungsi penurunan kunci, serta logika pengikatan parameter spasial BLE.
+Keunggulan sistem \textit{Dynamic Secure QR Code} terletak pada integrasi harmonis antara protokol kriptografi kunci publik asimetris dan algoritma simetris yang efisien. Subbab ini mendetailkan spesifikasi struktur muatan data, parameter kurva tanda tangan digital ECDSA, arsitektur derivasi kunci bertingkat (\textit{Two-Tier KDF}), serta logika pengikatan parameter spasial BLE sesuai implementasi sistem.
 
 \subsection{Spesifikasi Struktur Muatan Tiket (\textit{Payload Format})}
-Sesuai dengan prinsip \textit{Data Minimization} dan \textit{Privacy by Design}, muatan data yang dienkode ke dalam matriks kode QR dirancang seringkas mungkin dengan format teks terstruktur berbasis pembatas (\textit{delimiter-separated value}) pipa (\texttt{|}). Struktur data lengkap disajikan pada Tabel \ref{tab:payload_structure}.
+Sesuai dengan prinsip \textit{Data Minimization} dan \textit{Privacy by Design}, muatan data yang dienkode ke dalam matriks kode QR dirancang seringkas mungkin dengan format teks terstruktur berbasis pembatas (\textit{delimiter-separated value}) tanda titik dua (\texttt{:}). Struktur muatan data lengkap disajikan pada Tabel \ref{tab:payload_structure}.
 
 \begin{table}[htbp]
     \caption{Struktur Komponen Muatan Data Kode QR Dinamis}
@@ -226,47 +247,53 @@ Sesuai dengan prinsip \textit{Data Minimization} dan \textit{Privacy by Design},
     \centering
     \begin{tabularx}{\textwidth}{ l c >{\raggedright\arraybackslash}X }
         \toprule
-        \textbf{Nama Komponen} & \textbf{Tipe / Panjang} & \textbf{Deskripsi dan Rationale} \\
+        \textbf{Komponen} & \textbf{Tipe Data} & \textbf{Deskripsi dan Rationale} \\
         \midrule
-        \texttt{TID} & String UUID (36 byte) & Pengenal unik tiket (\textit{Ticket ID}) yang mereferensikan kepemilikan di basis data pusat. \\
-        \texttt{EID} & Integer (4 byte) & Pengenal unik acara (\textit{Event ID}) untuk memvalidasi konteks acara. \\
-        \texttt{CAT} & String (8 byte) & Kategori tiket (contoh: \texttt{VIP}, \texttt{CAT1}) untuk verifikasi hak akses zona. \\
-        \texttt{IAT} & Unix Timestamp (10 byte) & Waktu tiket diterbitkan (\textit{Issued At}) untuk pembatasan masa berlaku global. \\
-        \midrule
-        \texttt{SIG} & Base64 Hex (64 byte) & Tanda Tangan Digital ECDSA $(r, s)$ atas gabungan data statis di atas. \\
-        \texttt{TOTP} & Numerik (6 karakter) & Token sandi sekali pakai berbasis waktu dan pengikat gerbang spasial. \\
+        \texttt{ticket\_id} & Integer berseri & Pengenal unik tiket yang mereferensikan kepemilikan di basis data pusat (contoh: \texttt{1}, \texttt{42}). \\
+        \texttt{event\_id} & Integer & Pengenal unik kegiatan/acara yang sedang berlangsung (contoh: \texttt{1}). \\
+        \texttt{gate\_id} & String & Pengenal gerbang spesifik yang terdeteksi melalui sinyal BLE (contoh: \texttt{VIP-A}, \texttt{REG-B}). \\
+        \texttt{otp} & Numerik (6 digit) & Token sandi sekali pakai berbasis waktu dan terikat pada gerbang fisik (\textit{Gate-Bound TOTP}). \\
+        \texttt{signature} & Heksadesimal (128 char) & Tanda tangan digital ECDSA atas pasangan \texttt{ticket\_id:event\_id} dalam representasi heksadesimal (64 byte). \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-Dengan format ini, ukuran total deret karakter kode QR hanya berkisar antara 130 hingga 160 karakter ASCII. Ukuran muatan yang ringkas ini menghasilkan kode QR Versi 4 hingga Versi 6 dengan tingkat koreksi kesalahan (\textit{Error Correction Level}) level L atau M, sehingga pola modul matriks menjadi tidak terlalu rapat dan dapat terbaca oleh lensa kamera pemindai dengan sangat cepat (latensi di bawah 200 ms).
+Dengan susunan format terstruktur:
+\begin{equation}
+    Payload_{QR} = \texttt{ticket\_id:event\_id:gate\_id:otp:signature}
+\end{equation}
+Ukuran total deret karakter muatan kode QR hanya berkisar antara 145 hingga 160 karakter ASCII. Ukuran muatan yang sangat kompak ini menghasilkan kode QR Versi 5 atau Versi 6 dengan tingkat koreksi kesalahan (\textit{Error Correction Level}) level L atau M. Hal ini menjamin bahwa pola modul matriks tetap renggang dan dapat dibaca oleh lensa kamera pemindai dengan tingkat latensi optik di bawah 200 milidetik, bahkan dalam kondisi pencahayaan layar ponsel pengguna yang minim.
 
 \subsection{Skema Tanda Tangan Digital ECDSA}
-Untuk menjamin integritas muatan statis dan keaslian penerbit tanpa memerlukan sambungan internet ke peladen, sistem menerapkan \textit{Elliptic Curve Digital Signature Algorithm} (ECDSA). Spesifikasi kriptografis yang digunakan dirangkum sebagai berikut:
+Untuk menjamin integritas tiket dan membuktikan keaslian penerbit tanpa memerlukan sambungan internet ke \textit{server}, sistem menerapkan algoritma \textit{Elliptic Curve Digital Signature Algorithm} (ECDSA). Spesifikasi kriptografis yang dirancang dirangkum sebagai berikut:
 \begin{itemize}
-    \item \textbf{Standar Kurva Eliptik:} Kurva prima NIST P-256 (\textit{secp256r1}), didefinisikan pada medan berhingga $\mathbb{F}_p$ dengan panjang kunci 256-bit. Kurva ini dipilih karena menawarkan tingkat keamanan 128-bit yang setara dengan RSA 3072-bit, namun menghasilkan ukuran tanda tangan dan beban komputasi verifikasi yang jauh lebih ringan.
-    \item \textbf{Fungsi Hash Kriptografis:} SHA-256 (panjang keluaran 32 byte / 256 bit).
-    \item \textbf{Proses Penandatanganan (Sisi Peladen):}
+    \item \textbf{Standar Kurva Eliptik:} Kurva prima NIST P-256 (\textit{secp256r1}), didefinisikan pada medan berhingga $\mathbb{F}_p$ dengan panjang kunci 256-bit. Kurva ini dipilih karena menawarkan tingkat keamanan 128-bit yang setara dengan RSA 3072-bit, namun menghasilkan ukuran tanda tangan yang sangat ringkas dan beban komputasi verifikasi yang ringan untuk perangkat seluler.
+    \item \textbf{Pesan yang Ditandatangani:} Untuk meminimalkan beban komputasi dan memadatkan ukuran kode QR, pesan yang ditandatangani mengikat identitas tiket terhadap identitas acara:
+    \begin{equation}
+        message = Ticket\_ID \mathbin{\Vert} \text{":"} \mathbin{\Vert} Event\_ID
+    \end{equation}
+    Pengikatan ini secara matematis mencegah serangan pemindahan tiket ke acara lain (\textit{cross-event replay attack}).
+    \item \textbf{Proses Penandatanganan (Sisi \textit{Server}):}
     \begin{enumerate}
-        \item Pesan statis $m = \texttt{TID|EID|CAT|IAT}$ di-hash menjadi intisari pesan: $e = SHA\text{-}256(m)$.
-        \item Bilangan bulat acak kriptografis (\textit{ephemeral key}) $k \in_R [1, n-1]$ dibangkitkan.
+        \item Pesan $message$ di-hash menggunakan SHA-256 menghasilkan intisari pesan: $e = SHA\text{-}256(message)$.
+        \item Bilangan bulat acak kriptografis (\textit{ephemeral key}) $k \in_R [1, n-1]$ dibangkitkan secara aman.
         \item Titik kurva dihitung: $(x_1, y_1) = [k]G$, dan komponen pertama tanda tangan diperoleh melalui:
         \begin{equation}
             r = x_1 \pmod n
         \end{equation}
-        \item Komponen kedua tanda tangan dihitung menggunakan kunci privat peladen $d_{server}$:
+        \item Komponen kedua tanda tangan dihitung menggunakan kunci privat \textit{server} $d_{server}$:
         \begin{equation}
             s = k^{-1} (e + d_{server} \cdot r) \pmod n
         \end{equation}
-        \item Pasangan $(r, s)$ dienkode dalam format biner kompak 64-byte (32-byte untuk $r$ dan 32-byte untuk $s$) kemudian dikonversi menjadi representasi heksadesimal/Base64.
+        \item Pasangan nilai $(r, s)$ masing-masing memiliki panjang 32 byte biner (total 64 byte), yang kemudian dikonversikan menjadi deret string heksadesimal sepanjang 128 karakter.
     \end{enumerate}
     \item \textbf{Proses Verifikasi (Sisi Pemindai Gerbang Luring):}
     \begin{enumerate}
-        \item Pemindai memisahkan pesan $m$ dan pasangan tanda tangan $(r, s)$ dari kode QR.
-        \item Pemindai memverifikasi bahwa $r, s \in [1, n-1]$.
-        \item Intisari pesan dihitung kembali secara lokal: $e = SHA\text{-}256(m)$.
+        \item Pemindai memisahkan $Ticket\_ID$, $Event\_ID$, dan $Signature$ dari muatan kode QR.
+        \item Pemindai merekonstruksi pesan acuan: $message = Ticket\_ID \mathbin{\Vert} \text{":"} \mathbin{\Vert} Event\_ID$.
+        \item Intisari pesan dihitung kembali secara lokal: $e = SHA\text{-}256(message)$.
         \item Nilai perantara dihitung: $w = s^{-1} \pmod n$, lalu $u_1 = e \cdot w \pmod n$ dan $u_2 = r \cdot w \pmod n$.
-        \item Rekonstruksi titik kurva dilakukan dengan kunci publik peladen $Q_{server}$:
+        \item Titik kurva direkonstruksi dengan Kunci Publik \textit{Server} ($Q_{server}$):
         \begin{equation}
             (x_1, y_1) = [u_1]G + [u_2]Q_{server}
         \end{equation}
@@ -274,54 +301,64 @@ Untuk menjamin integritas muatan statis dan keaslian penerbit tanpa memerlukan s
     \end{enumerate}
 \end{itemize}
 
-\subsection{Skema Derivasi Kunci KDF (HMAC-SHA-256)}
-Salah satu tantangan kritis dalam validasi tiket secara luring adalah bagaimana alat pemindai dapat mengetahui kunci rahasia milik pengguna tanpa harus menyimpan ribuan kunci seluruh pengunjung di dalam memori pemindai (yang berisiko tinggi terhadap pencurian kunci / \textit{reverse engineering}). 
+\subsection{Skema Derivasi Kunci Dua Tingkat (\textit{Two-Tier KDF Hierarchy})}
+Salah satu keunggulan rancangan sistem ini adalah penerapan hierarki fungsi penurunan kunci dua tingkat (\textit{Two-Tier Key Derivation Hierarchy}) berbasis HMAC-SHA-256. Skema ini dirancang untuk mencapai dua tujuan fundamental: (1) pemindai dapat menurunkan kunci rahasia pengguna secara instan tanpa perlu menyimpan pangkalan data kunci seluruh pengunjung, dan (2) pembobolan kunci pada satu gerbang masuk tidak akan membahayakan tiket pada gerbang masuk lainnya (\textit{cryptographic compartmentalization}).
 
-Sistem memecahkan tantangan ini melalui skema \textit{Key Derivation Function} berbasis HMAC. Kunci rahasia bersama master (\textit{Master Secret}) disimpan secara aman di dalam modul perangkat keras pemindai gerbang. Saat sebuah tiket dipindai, pemindai menurunkan kunci rahasia pengguna secara dinamis (\textit{on-the-fly}):
-\begin{equation}
-    User\_Secret = HMAC\text{-}SHA\text{-}256\Big(Master\_Secret, Ticket\_ID\Big)
-\end{equation}
-Karena fungsi HMAC memiliki sifat satu arah (\textit{pre-image resistance}) dan resistan terhadap kolisi, mengetahui $User\_Secret$ tidak memungkinkan penyerang untuk merekayasa balik $Master\_Secret$. Skema ini memungkinkan verifikasi token TOTP berlangsung tanpa membebani penyimpanan perangkat pemindai dengan basis data tabel kunci pengguna.
-
-\subsection{Skema Pengikatan Spasial (\textit{Gate-Bound Logic via BLE})}
-Untuk mematikan celah serangan putar ulang multi-gerbang (\textit{Multi-Gate Offline Replay}), token TOTP dimodifikasi agar tidak hanya terikat pada waktu, tetapi juga terikat secara spasial pada lokasi gerbang masuk. Formulasi pengikatan spasial dirancang sebagai berikut:
+Hierarki derivasi kunci dimodelkan sebagai berikut:
 \begin{enumerate}
-    \item \textbf{Penentuan Parameter Langkah Waktu ($T$):}
+    \item \textbf{Tingkat 1 — Derivasi Kunci Tiket ($Ticket\_Secret$):}
+    Dihitung oleh \textit{server} saat penerbitan tiket dan direkonstruksi secara lokal oleh pemindai saat validasi:
+    \begin{equation}
+        Ticket\_Secret = HMAC\text{-}SHA\text{-}256\Big(Master\_Secret, Ticket\_ID\Big)
+    \end{equation}
+    Kunci ini bersifat unik per tiket dan terikat pada kunci master acara ($Master\_Secret$).
+    \item \textbf{Tingkat 2 — Derivasi Kunci Gerbang ($Gate\_Secret$):}
+    Dihitung oleh aplikasi ponsel penonton (setelah menangkap sinyal BLE gerbang) serta dihitung oleh pemindai gerbang lokal:
+    \begin{equation}
+        Gate\_Secret = HMAC\text{-}SHA\text{-}256\Big(Ticket\_Secret, Gate\_ID\Big)
+    \end{equation}
+    Kunci rahasia $Gate\_Secret$ ini bertindak sebagai kunci simetris akhir yang digunakan untuk menghitung token waktu TOTP.
+\end{enumerate}
+
+Dengan hierarki ini, \textit{Master Secret} hanya disimpan di lingkungan aman \textit{server} dan perangkat pemindai resmi. Pengguna hanya menerima $Ticket\_Secret$ miliknya sendiri, dan nilai tersebut diturunkan kembali menjadi $Gate\_Secret$ hanya ketika berada dalam radius fisik gerbang yang bersangkutan.
+
+\subsection{Skema Pengikatan Spasial (\textit{Gate-Bound TOTP via RFC 6238})}
+Untuk menghasilkan kode dinamis yang kompatibel penuh dengan standar industri namun memiliki keterikatan spasial, sistem mengadopsi algoritma \textit{Time-based One-Time Password} (TOTP) yang distandardisasi dalam RFC 6238 dengan memanfaatkan $Gate\_Secret$ sebagai kunci input.
+
+Formulasi matematis pembangkitan token diuraikan sebagai berikut:
+\begin{enumerate}
+    \item \textbf{Penentuan Langkah Waktu ($T$):}
     \begin{equation}
         T = \left\lfloor \frac{CurrentUnixTime - T_0}{X} \right\rfloor
     \end{equation}
-    di mana $T_0 = 0$ dan durasi interval jendela waktu ditetapkan $X = 30$ detik.
-    \item \textbf{Injeksi Pengenal Gerbang ($Gate\_ID$):} Nilai $Gate\_ID$ (berupa integer atau string identitas pintu masuk, misal ``GATE-03'') yang disiarkan oleh perangkat pemindai digabungkan (\textit{concatenated}) secara langsung dengan nilai langkah waktu $T$:
+    di mana $T_0 = 0$ (titik awal Unix epoch) dan durasi langkah waktu ditetapkan $X = 30$ detik.
+    \item \textbf{Kalkulasi Nilai Hash HMAC-SHA-1:} Sesuai dengan spesifikasi baku RFC 6238 dan pustaka standar \textit{one-time password}, nilai intisari dihitung menggunakan fungsi HMAC-SHA-1:
     \begin{equation}
-        Message_{input} = T \parallel Gate\_ID
+        HS = HMAC\text{-}SHA\text{-}1\Big(Gate\_Secret, T\Big)
     \end{equation}
-    \item \textbf{Kalkulasi Nilai Hash HMAC Terikat Gerbang:}
+    \item \textbf{Pemotongan Dinamis (\textit{Dynamic Truncation}):} Dari 20 byte keluaran $HS$, indeks pergeseran (\textit{offset}) diambil dari 4-bit terbawah byte ke-19:
     \begin{equation}
-        HS_{gate} = HMAC\text{-}SHA\text{-}256\Big(User\_Secret, Message_{input}\Big)
-    \end{equation}
-    \item \textbf{Ekstraksi Nilai Numerik 6 Digit (\textit{Dynamic Truncation}):} Dari 32 byte hasil intisari $HS_{gate}$, offset diambil dari 4-bit terbawah byte terakhir:
-    \begin{equation}
-        Offset = HS_{gate}[31] \ \& \ 0x0F
+        Offset = HS[19] \ \& \ 0x0F
     \end{equation}
     Empat byte biner diambil mulai dari posisi $Offset$:
     \begin{equation}
-        P = HS_{gate}[Offset : Offset+3] \ \& \ 0x7FFFFFFF
+        P = HS[Offset : Offset+3] \ \& \ 0x7FFFFFFF
     \end{equation}
-    Nilai token 6 digit akhir didapatkan dengan:
+    \item \textbf{Pembentukan Token 6 Digit Dinamis:}
     \begin{equation}
         Gate\_Bound\_TOTP = P \pmod{10^6}
     \end{equation}
 \end{enumerate}
 
-Apabila seorang penyerang menyalin citra kode QR dinamis pada Gerbang A lalu mengirimkannya kepada rekannya yang berada di Gerbang B, pemindai pada Gerbang B akan menghitung nilai acuan menggunakan $Gate\_ID = \text{``GATE-02''}$. Perbedaan parameter masukan ini menghasilkan nilai $HS_{gate}$ yang acak dan berbeda sama sekali, sehingga verifikasi pada Gerbang B otomatis gagal.
+Mekanisme ini secara efektif mematikan celah serangan penggandaan multi-gerbang luring (\textit{Multi-Gate Offline Replay}). Apabila pengguna di Gerbang A (\texttt{gate\_id = "VIP-A"}) mengirimkan tangkapan layar kode QR miliknya kepada rekannya di Gerbang B (\texttt{gate\_id = "REG-B"}), alat pemindai di Gerbang B akan menghitung nilai acuan menggunakan $Gate\_Secret_{B} = HMAC(Ticket\_Secret, \text{"REG-B"})$. Karena kunci masukan berbeda secara deterministik, nilai TOTP yang dihasilkan di Gerbang B dipastikan tidak cocok, dan tiket ditolak secara otomatis.
 
 \section{Perancangan Basis Data dan Manajemen Penyimpanan}
 \label{sec:perancangan_basis_data}
 
-Perancangan arsitektur penyimpanan data dibagi ke dalam tiga domain: basis data relasional terpusat pada peladen (\textit{PostgreSQL}), basis data lokal pemindai gerbang (\textit{SQLite}), dan penyimpanan kredensial aman pada perangkat seluler penonton (\textit{Encrypted Keystore}).
+Perancangan arsitektur penyimpanan data dibagi ke dalam tiga domain: basis data relasional terpusat pada \textit{server} (\textit{PostgreSQL}), repositori penyimpanan lokal pemindai gerbang, dan penyimpanan kredensial aman pada perangkat seluler penonton.
 
 \subsection{Skema Basis Data Server (Relasional PostgreSQL)}
-Basis data peladen dirancang untuk mengelola entitas pengguna, data acara, hak akses tiket, dan histori pemindaian. Diagram Relasi Entitas (\textit{Entity Relationship Diagram} / ERD) sistem disajikan pada Gambar \ref{fig:erd_diagram}.
+Basis data \textit{server} dirancang untuk mengelola entitas pengguna, data acara, hak akses tiket, dan histori pemindaian. Diagram Relasi Entitas (\textit{Entity Relationship Diagram} / ERD) sistem disajikan pada Gambar \ref{fig:erd_diagram}.
 
 \begin{figure}[htbp]
     \centering
@@ -360,13 +397,13 @@ Kamus data untuk tabel-tabel utama dijabarkan pada tabel-tabel berikut:
             \toprule
             \textbf{Nama Kolom} & \textbf{Tipe Data} & \textbf{Keterangan Kunci} & \textbf{Deskripsi} \\
             \midrule
-            \texttt{id} & UUID & PRIMARY KEY & Pengenal unik tiket ($Ticket\_ID$). \\
+            \texttt{id} & SERIAL & PRIMARY KEY & Pengenal unik tiket ($Ticket\_ID$) dalam format bilangan bulat berseri. \\
             \texttt{event\_id} & INTEGER & FOREIGN KEY & Mereferensi ke tabel \texttt{events(id)}. \\
-            \texttt{user\_id} & INTEGER & FOREIGN KEY & Pengenal pembeli tiket di peladen pusat. \\
+            \texttt{user\_id} & INTEGER & FOREIGN KEY & Pengenal pembeli tiket di \textit{server} pusat. \\
             \texttt{ticket\_category} & VARCHAR(30) & NOT NULL & Jenis tiket (misal: VIP, Regular, Tribune). \\
             \texttt{status} & VARCHAR(20) & NOT NULL & Status tiket: \texttt{ISSUED}, \texttt{SCANNED}, \texttt{CANCELLED}. \\
-            \texttt{signature} & TEXT & NOT NULL & Tanda tangan digital ECDSA dalam representasi Base64. \\
-            \texttt{issued\_at} & TIMESTAMP & NOT NULL & Waktu pencetakan tiket. \\
+            \texttt{signature} & VARCHAR(128) & NOT NULL & Tanda tangan digital ECDSA dalam representasi heksadesimal (64 byte $r \mathbin{\Vert} s$). \\
+            \texttt{issued\_at} & TIMESTAMP & NOT NULL & Waktu pencetakan tiket oleh \textit{server}. \\
             \bottomrule
         \end{tabularx}
     \end{table}
@@ -381,30 +418,36 @@ Kamus data untuk tabel-tabel utama dijabarkan pada tabel-tabel berikut:
             \textbf{Nama Kolom} & \textbf{Tipe Data} & \textbf{Keterangan Kunci} & \textbf{Deskripsi} \\
             \midrule
             \texttt{id} & BIGSERIAL & PRIMARY KEY & Pengenal catatan log transaksi. \\
-            \texttt{ticket\_id} & UUID & FOREIGN KEY & Mereferensi ke tiket yang divalidasi. \\
+            \texttt{ticket\_id} & INTEGER & FOREIGN KEY & Mereferensi ke tiket yang divalidasi (\texttt{tickets(id)}). \\
             \texttt{gate\_id} & VARCHAR(30) & NOT NULL & Pengenal pintu masuk tempat pemindaian. \\
             \texttt{scanner\_device\_id} & VARCHAR(50) & NOT NULL & Pengenal perangkat keras pemindai petugas. \\
             \texttt{scanned\_at} & TIMESTAMP & NOT NULL & Waktu tiket berhasil diverifikasi di gerbang. \\
-            \texttt{synced\_at} & TIMESTAMP & DEFAULT NULL & Waktu log berhasil direkonsiliasi ke peladen. \\
+            \texttt{synced\_at} & TIMESTAMP & DEFAULT NULL & Waktu log berhasil direkonsiliasi ke \textit{server}. \\
             \bottomrule
         \end{tabularx}
     \end{table}
 \end{enumerate}
 
-\subsection{Skema Penyimpanan Lokal Pemindai (\textit{SQLite Local Storage})}
-Untuk mengoperasikan pemindaian luring berkecepatan tinggi, perangkat pemindai gerbang menyimpan basis data lokal SQLite dengan dua tabel utama:
+\subsection{Skema Penyimpanan Lokal Pemindai (\textit{Scanner Local Storage})}
+Untuk mengoperasikan pemindaian luring berkecepatan tinggi, perangkat pemindai gerbang dirancang memiliki modul penyimpanan lokal persisten dengan dua struktur data utama:
 \begin{enumerate}
-    \item \textbf{Tabel \texttt{local\_scans}:} Berfungsi sebagai memori pencegah pembelanjaan ganda instan (\textit{instant double-spending cache}) di gerbang bersangkutan. Tabel ini memiliki kolom \texttt{ticket\_id} (PRIMARY KEY), \texttt{scanned\_at}, dan \texttt{gate\_id}. Pemindai melakukan pengecekan kueri lokal terindeks (\textit{indexed lookup}) yang memakan waktu kurang dari 5 milidetik untuk memastikan tiket belum pernah lolos di pintu tersebut.
-    \item \textbf{Tabel \texttt{sync\_queue}:} Berfungsi sebagai antrean log asinkron. Tabel ini menyimpan kolom \texttt{id} (INTEGER PRIMARY KEY), \texttt{payload\_json} (teks data log pemindaian lengkap), \texttt{status} (\texttt{PENDING}, \texttt{SENT}), dan \texttt{retry\_count} untuk manajemen transmisi ulang jika sambungan jaringan terputus di tengah pengiriman \textit{batch}.
+    \item \textbf{Memori Pencegah Tiket Ganda (\textit{Local Double-Spending Cache}):} Berfungsi sebagai repositori instan untuk mencegah pembelanjaan ganda di gerbang bersangkutan. Struktur ini mengindeks kolom \texttt{ticket\_id} (sebagai kunci unik), \texttt{scanned\_at}, dan \texttt{gate\_id}. Pemindai melakukan pengecekan kueri lokal terindeks (\textit{indexed lookup}) yang memakan waktu kurang dari 5 milidetik untuk memastikan tiket belum pernah diloloskan di pintu tersebut.
+    \item \textbf{Antrean Sinkronisasi Luring (\textit{Offline Sync Queue}):} Berfungsi sebagai antrean log asinkron. Struktur ini menyimpan rekaman pemindaian berupa pengenal urutan \texttt{id}, muatan data lengkap \texttt{payload\_json} (\texttt{ticket\_id}, \texttt{gate\_id}, \texttt{scanned\_at}, dan \texttt{scanner\_device\_id}), status pengiriman (\texttt{PENDING}, \texttt{SENT}), serta penghitung transmisi ulang (\textit{retry count}) jika sambungan jaringan terputus di tengah proses sinkronisasi.
 \end{enumerate}
 
+Pada rancangan sistem berskala penuh, komponen ini dirancang menggunakan basis data relasional tersemat \textit{SQLite} (\texttt{local\_scans} dan \texttt{sync\_queue}). Sementara itu, pada implementasi prototipe MVP saat ini, mekanisme persistensi lokal ini direalisasikan secara fungsional melalui penyimpanan lokal terisolasi berbasis \texttt{@react-native-async-storage/async-storage} (dengan kunci penyimpanan \texttt{offline\_scans\_queue} dan \texttt{scanned\_tickets\_cache}), yang berhasil membuktikan kelayakan pemindaian instan tanpa jaringan serta pemulihan antrean sinkronisasi saat konektivitas kembali pulih.
+
 \subsection{Skema Penyimpanan Kredensial Aman Klien (\textit{Secure Storage Mobile})}
-Pada aplikasi ponsel pengguna, keamanan nilai kunci rahasia pengguna ($User\_Secret$) menjadi faktor krusial untuk mencegah serangan ekstraksi kredensial (\textit{Stored Credential Exfiltration}) oleh aplikasi berbahaya (\textit{malware}). Penyimpanan tidak menggunakan modul \textit{AsyncStorage} biasa (yang menyimpan teks mentah / \textit{plaintext} tanpa proteksi), melainkan mengadopsi antarmuka penyimpanan terenkripsi berbasis perangkat keras (\textit{Hardware-Backed Keystore}):
+Pada aplikasi ponsel pengguna, kerahasiaan nilai kunci rahasia tiket ($Ticket\_Secret$) menjadi faktor krusial untuk mencegah serangan ekstraksi kredensial (\textit{Stored Credential Exfiltration}) oleh aplikasi pihak ketiga yang berbahaya (\textit{malware}).
+
+Pada spesifikasi rancangan produksi tingkat lanjut, sistem diarahkan untuk mengadopsi antarmuka penyimpanan terenkripsi berbasis perangkat keras (\textit{Hardware-Backed Keystore}):
 \begin{itemize}
     \item Pada sistem operasi Android, aplikasi memanfaatkan \textit{EncryptedSharedPreferences} yang dilindungi oleh \textit{Android KeyStore} dengan skema enkripsi AES-256 GCM.
     \item Pada sistem operasi iOS, data disimpan di dalam \textit{Keychain Services} yang terisolasi di dalam \textit{Secure Enclave}.
 \end{itemize}
-Dengan pendekatan ini, kunci rahasia pengguna tidak dapat diekstrak meskipun perangkat seluler pengguna berhasil dihubungkan ke komputer melalui antarmuka \textit{debugging} (ADB) atau dalam kondisi perangkat telah di-\textit{root}.
+Dengan pendekatan tersebut, kunci rahasia tiket terlindungi secara kriptografis meskipun perangkat seluler dihubungkan ke komputer melalui antarmuka \textit{debugging} (ADB) atau dalam kondisi perangkat telah di-\textit{root}.
+
+Pada realisasi prototipe MVP saat ini, kredensial tiket disimpan dalam ruang penyimpanan lokal yang terisolasi per pengguna (\textit{sandboxed persistent storage}) menggunakan \textit{AsyncStorage} dengan format pemisahan kunci sesi (\texttt{user\_tickets\_\{userId\}}). Pendekatan ini telah memadai untuk mendemonstrasikan isolasi profil antar-pengguna pada tahap pengujian purwarupa.
 
 \section{Perancangan Antarmuka Pengguna (\textit{UI/UX Design})}
 \label{sec:perancangan_antarmuka}
@@ -426,10 +469,10 @@ Fitur-fitur utama pada antarmuka penonton meliputi:
 \begin{enumerate}
     \item \textbf{Area Tampilan Kode QR Dinamis:} Komponen matriks kode QR berukuran proporsional di tengah layar dengan kontras tinggi (modul hitam di atas latar belakang putih bersih) untuk memaksimalkan keterbacaan oleh lensa kamera pemindai.
     \item \textbf{Indikator Waktu Kedaluwarsa (\textit{Countdown Progress Bar}):} Komponen visual berupa bilah progres linier yang menyusut dalam rentang 30 detik untuk memberikan umpan balik intuitif kepada penonton mengenai sisa masa aktif kode QR saat ini sebelum diperbarui secara otomatis.
-    \item \textbf{Indikator Status Kedekatan Gerbang (\textit{BLE Gate-Bound Status}):} Indikator status visual yang menampilkan status deteksi sinyal nirkabel:
+    \item \textbf{Indikator Status Kedekatan Gerbang (\textit{BLE Gate Proximity Indicator}):} Komponen status visual yang menampilkan umpan balik deteksi suar nirkabel:
     \begin{itemize}
-        \item \textit{Warna Hijau (Terdeteksi Gerbang Masuk):} Menandakan ponsel telah menangkap sinyal \textit{beacon} dari gerbang acara dalam radius fisik yang diizinkan dan kode QR siap dipindai.
-        \item \textit{Warna Abu-abu/Kuning (Di Luar Jangkauan Gerbang):} Menandakan pengguna belum berada di area gerbang pemeriksaan fisik.
+        \item \textit{Warna Hijau (Terikat pada Gerbang):} Menandakan ponsel telah menangkap sinyal \textit{beacon} dari gerbang acara dalam radius fisik yang diizinkan (misal: "VIP-A") dan kode QR telah dibangkitkan dengan muatan pengikatan gerbang yang sah.
+        \item \textit{Warna Abu-abu / Kuning (Di Luar Jangkauan Gerbang):} Menandakan pengguna belum berada di area gerbang pemeriksaan fisik dan memunculkan petunjuk arah bagi pengunjung untuk mendekati gerbang.
     \end{itemize}
 \end{enumerate}
 
@@ -449,9 +492,12 @@ Elemen fungsional pada antarmuka pemindai petugas mencakup:
     \item \textbf{Jendela Bidik Pemindaian (\textit{Viewfinder Camera}):} Menampilkan umpan video langsung (\textit{live camera feed}) dengan bingkai pemandu di area tengah untuk pemindaian cepat kode QR pengunjung secara terus-menerus.
     \item \textbf{Panel Notifikasi Hasil Validasi Berwarna Kontras:}
     \begin{itemize}
-        \item \textbf{Hijau (VALID / MASUK):} Tiket terbukti asli, tanda tangan valid, token TOTP cocok dengan gerbang, dan belum pernah dipindai. Disertai nada bip positif (\textit{success chime}).
-        \item \textbf{Merah (INVALID / DITOLAK):} Tiket terindikasi palsu, tanda tangan digital salah, atau tiket telah tercatat di basis data lokal sebagai tiket yang sudah digunakan (\textit{double-spending}). Disertai getaran panjang dan nada peringatan.
-        \item \textbf{Kuning (GERBANG SALAH):} Nilai TOTP valid namun terikat pada pengenal gerbang lain (\textit{wrong gate bound}), memberi petunjuk langsung kepada petugas untuk mengarahkan penonton ke gerbang yang sesuai.
+        \item \textbf{Hijau (VALID / MASUK):} Tiket terbukti asli, tanda tangan digital ECDSA valid, token TOTP cocok dengan gerbang tempat pemindaian, dan tiket belum pernah dipindai sebelumnya. Layar menampilkan kartu status hijau bertuliskan \textit{"VALID - TIKET DITERIMA"}, rincian kategori tiket, disertai nada bip positif (\textit{success chime}).
+        \item \textbf{Merah (INVALID / DITOLAK):} Sesuai implementasi pada antarmuka aplikasi pemindai, seluruh kondisi penolakan tiket disajikan secara konsisten menggunakan panel visual berwarna \textbf{merah mencolok} disertai getaran peringatan agar operator langsung menghentikan pengunjung. Namun demikian, sistem membedakan akar penyebab penolakan melalui pesan teks diagnostik yang jelas:
+        \begin{enumerate}
+            \item \textit{Penolakan Tiket Palsu atau Digunakan Ulang:} Menampilkan pesan teks \textit{"TIKET SUDAH DIGUNAKAN / PALSU"} jika tanda tangan digital tidak cocok atau tiket telah tercatat di memori pencegah tiket ganda lokal.
+            \item \textit{Penolakan Gerbang Tidak Sesuai (\textit{Wrong Gate Bound}):} Menampilkan pesan teks informatif \textit{"GERBANG SALAH / TIKET VALID DI GERBANG LAIN"} beserta petunjuk nama gerbang yang terikat pada tiket pengunjung. Fitur ini memungkinkan petugas segera mengarahkan pengunjung menuju gerbang yang benar tanpa menimbulkan kesalahpahaman bahwa tiket tersebut palsu.
+        \end{enumerate}
     \end{itemize}
-    \item \textbf{Bilah Status Operasional Luring (\textit{Offline Mode Banner}):} Menampilkan status konektivitas jaringan (Luring / Daring) dan jumlah data log transaksi yang saat ini tertampung di antrean lokal pemindai (\textit{Pending Sync Count}).
+    \item \textbf{Bilah Operasional Sinkronisasi Luring (\textit{Offline \& Sync Toolbar}):} Menampilkan status konektivitas jaringan (\textit{Online} / \textit{Offline}), jumlah rekaman data yang tertampung di antrean pemindai lokal (\textit{Pending Sync Count}), menu pilihan interval sinkronisasi otomatis (1, 5, atau 10 menit), serta tombol aksi pemicu sinkronisasi manual ke \textit{server} (\texttt{POST /batch\_sync\_scans}).
 \end{enumerate}
